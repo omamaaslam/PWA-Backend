@@ -25,7 +25,7 @@ mongoose.connect(
   { useNewUrlParser: true, useUnifiedTopology: true }
 );
 
-// Mongopse Schema
+// Mongoose Schema
 const subscriptionSchema = new mongoose.Schema({
   endpoint: String,
   expirationTime: String,
@@ -75,7 +75,33 @@ app.post('/api/sendNotifications', (req, res) => {
       body: 'This is the body of the notification',
       icon: 'icons/icon-72x72.png',
     }
-  }
+  };
+
+  Subscription.find({}, (err, subscriptions) => {
+    if (err) {
+      console.error('Error fetching subscriptions:', error);
+      res.sendStatus(500);
+    } else {
+      const promises = []; // This variable promises is initialized as an empty array. It will store promises that are returned when sending push notifications to each subscriber.
+      subscriptions.forEach((subscription) => {
+        const pushPromise = webpush.sendNotification(subscription, JSON.stringify(notificationPayload))
+          .catch((error) => {
+            console.error('Error sending push notification:', error);
+          });
+        promises.push(pushPromise);
+      });
+
+      Promise.all(promises)
+        .then(() => {
+          res.status(200).json({ message: 'Push notifications sent successfully' });
+        })
+        .catch((error) => {
+          console.error('Error sending push notifications:', error);
+          res.sendStatus(500);
+        });
+    }
+  });
 });
+
 
 app.listen(port, () => console.log("Server Started...."));
